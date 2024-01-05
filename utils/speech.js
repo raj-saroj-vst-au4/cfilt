@@ -1,44 +1,60 @@
 const axios = require("axios").default;
+const FormData = require("form-data");
 
-const handleSpeech2Blob = async (message) => {
+const handleSpeech2Blob = async (message, sliceSize = 512) => {
   try {
     // Fetch audio data from the message
     const audioData = await message.downloadMedia();
+    const binaryData = atob(audioData.data);
+    const byteArrays = [];
 
-    // Create a blob from the Uint8Array
-    const audioBlob = new Blob([audioData], {
-      type: message._data.mimetype, // Ensure the correct MIME type is used
-    });
+    for (let offset = 0; offset < binaryData.length; offset += sliceSize) {
+      const slice = binaryData.slice(offset, offset + sliceSize);
+      const byteNumbers = new Array(slice.length);
 
-    console.log("Audio Blob:", audioBlob);
-    return audioBlob;
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+
+      const byteArray = new Uint8Array(byteNumbers);
+      byteArrays.push(byteArray);
+    }
+
+    console.log(byteArrays.length);
+
+    const blob = new Blob(byteArrays, { type: "audio/ogg" });
+    console.log("Generated blob", blob);
+    return audioData;
   } catch (error) {
     console.error("Error fetching or converting audio:", error);
     throw error; // Propagate the error for handling higher up in the code
   }
 };
-const handleConvertText = async (recordedBlob, source) => {
+
+const handleConvertText = async (recordedBlob) => {
   var api_url = "https://www.cfilt.iitb.ac.in/en-hi/text";
 
-  const params = JSON.stringify({ sourceLanguage: source });
+  const params = JSON.stringify({ sourceLanguage: "en" });
 
-  var formData = new FormData();
-  formData.append("files", recordedBlob, "whatsappvoicenote");
-  formData.append("data", params);
+  console.log("recorded blob", recordedBlob);
 
-  await axios({
-    method: "post",
-    url: api_url,
-    data: formData,
-    headers: { "Content-Type": "multipart/form-data" },
-  }).then((res) => {
-    const text_output = res.data.text;
+  const translationFormData = new FormData();
+  translationFormData.append("files", recordedBlob.data, "wsvoicenote.ogg");
+  translationFormData.append("data", params);
 
-    console.log(text_output);
-    // handle_source_text(text_output);
+  try {
+    const response = await axios({
+      method: "POST",
+      url: api_url,
+      data: translationFormData,
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-    // translate_speech(text_output);
-  });
+    console.log(response);
+    return response; // If you want to return the text for further use
+  } catch (e) {
+    console.log("Converting to text error", e);
+  }
 };
 
 const handleTanslateSpeech = async (current_text) => {

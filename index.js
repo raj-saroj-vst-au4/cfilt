@@ -1,7 +1,8 @@
 const fs = require("fs");
 const { config } = require("dotenv");
 const { LocalAuth, Client } = require("whatsapp-web.js");
-const { quota, closefriends } = require("./constants");
+const { quota } = require("./constants");
+
 const {
   handleSave2Redis,
   handleCheckQuota,
@@ -46,13 +47,14 @@ client.on("message", async (message) => {
       try {
         // React to the received message
         const quotaLeft = await handleCheckQuota(message.from);
-        if (quotaLeft > 0) {
+        if (quotaLeft > -20) {
           console.log("Quota left ", quotaLeft);
           await message.react("👍"); // You can use any emoji as a reaction
           console.log("Received an audio file !");
           const blob = await handleSpeech2Blob(message);
-          await handleConvertText(blob, "en");
+          const STT = await handleConvertText(blob, "en");
           //   await handleTanslateSpeech("My name is Raj");
+          console.log("Speech to Text OUTPUT", STT);
           await handleDecrementQuota(message.from);
         }
         // const audiodata = `voice_${message.from}_${Date.now()}`;

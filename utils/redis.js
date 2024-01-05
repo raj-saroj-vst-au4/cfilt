@@ -93,8 +93,9 @@ const handleDecrementQuota = async (from) => {
   const redis = new Redis(process.env.REDIS_URL);
   try {
     const data = await redis.hget("wsconv", from);
+    console.log("decrementing from ", data);
     if (data) {
-      const parsedData = JSON.parse(data);
+      let parsedData = JSON.parse(data);
       parsedData.freeQuota = parsedData.freeQuota - 1;
       return await redis.hset("wsconv", from, JSON.stringify(parsedData));
     }
